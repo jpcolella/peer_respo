@@ -46,10 +46,10 @@ rescaled_intercepts_hr_min = c()
 
 #For each changepoint 1:N
 for(i in 1:6){
-  this_intercept <- cpts.full(out)[2,][[i]] 
+  this_intercept <- cpts.full(out)[2,][[i]] ### UPDATE to reflect the appropriate row number (as in cpts.full(out)[2,] above)
   print(this_intercept)
   # Because seconds measurements may not be regularly spaced, look up changepoint indx in time_in_S to find the closest time point to that cpt
-  secs <- BL_noOL_F_sort$time_in_S[this_intercept]
+  secs <- BL_noOL_F_sort$time_in_S[this_intercept] ### UPDATE dataset being tested
   intercepts_s <- c(intercepts_s, secs)
   hrmin <- as.character(seconds_to_period(secs))
   hrmin_parts <- strsplit(hrmin, " ")
@@ -83,8 +83,12 @@ plot(out, ncpts = 6, type = "p", pch = 16, cex = 0.7,
      xlab="Time (s)", ylab="EE",
      frame.plot =  FALSE, xlim=c(0, 1900), ylim=c(0, 0.5))
 axis(1, at = locations, labels = c("0", "21600", "43200", "64800", "86400")) 
-abline(v = c(406, 551, 612, 1441, 1506, 1597), col="grey31", lty=2, lwd =2)
-text(c(420, 580, 800, 1450, 1620, 1800), 
+
+### RAW locations of Bayesian change points
+abline(v = c(406, 551, 612, 1441, 1506, 1597), col="grey31", lty=2, lwd =2) ### UPDATE these values for each variable/experiement (same as: cpts.full(out)[N,] - where N is the row containing the optimal number of change points)  
+
+### TIME locations of changepoints relative to X axis scale - adjust for each plot
+text(c(420, 580, 800, 1450, 1620, 1800), ### UPDATE for each variable/experiemnt (same values as in: intercepts_s)
      c(rep(0.5, length(rescaled_intercepts_hr_min))),
      rescaled_intercepts_hr_min, pos=2)
 ### Export as pdf
