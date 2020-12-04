@@ -1,0 +1,117 @@
+### Remove Outliers from raw P. eremicus respirometry data
+### Author: Jocelyn P. Colella
+
+### Script identifies outliers (>3 sd from the mean) and creates a new csv with outliers excluded
+### Also manually corrects mis-typed weight (from 29.980 to 19.980) prior to all downstream analyses
+### Input data: analysis_data_final_23June2020.csv
+
+# Load libraries
+library(ggplot2)
+library(tidyverse)
+library(car) 
+library(lubridate)
+library(ggpubr)
+library(ggpmisc)
+library(gridExtra)
+library(rlist)
+library(ggplot2)
+library(broom)
+library(nlme)
+library(rstatix)
+library(compositions)
+library(dplyr)
+
+# Set working directory
+setwd("~/Documents/Jocie/projects/Pero_respo/Analyses/data/")
+
+# Read in raw data
+data <- read_csv("analysis_data_final_2July2020.csv", 
+                 col_types = cols(Sex = col_character(),
+                                  EE = col_double(), H2Omg = col_double(), RQ = col_double(),Animal_ID = col_character(),
+                                  Deg_C = col_double(), weight = col_double(), experiment = col_character(),
+                                  StartTime = col_character(), #col_time(format = "%H:%M:%S"), - changed for easy use of lubridate
+                                  SD_VCO2 = col_double(),SD_VO2 = col_double(),SD_H2Omg = col_double(),
+                                  VO2 = col_double(),VCO2 = col_double(),
+                                  StartDate = col_date(format = "%Y-%m-%d"), hour = col_integer()))
+
+# Add a columns for the total number of seconds to reach that sampling point
+data$time_in_S <- period_to_seconds(hms(data$StartTime))
+
+# Replace mis-typed weight (29.980) with correct weight (19.980)
+data$weight[data$weight == 29.980] <- 19.980
+
+
+### Establish when each interval/transition starts and stops
+# Daytime interval: hrs:8:00-21:00
+daytime_interval <- period_to_seconds(hms("09:00:00")):period_to_seconds(hms("20:00:00"))
+
+# Night time: hrs 22:00-5:00 
+nighttime_interval <- c((period_to_seconds(hms("21:00:01")):period_to_seconds(hms("24:59:59"))), #evening portion of 'nighttime'
+                        (period_to_seconds(hms("00:00:00")):period_to_seconds(hms("06:00:00")))) #morning portion of 'nightitme'
+
+# Morning transition (t1): 6:00-9:00
+t1_interval <- period_to_seconds(hms("06:00:00")):period_to_seconds(hms("09:00:00"))
+
+# Evening transition (t2): 20-21:00
+t2_interval <- period_to_seconds(hms("20:00:00")):period_to_seconds(hms("21:00:00"))
+
+
+### Create data subsets for males and females for each experiment (day, night, baseline [BL]) and each time block [e.g., t1/transition1, daytime, t2/transistion2, nighttime])
+# all males and females across all 3 experiments (BL, hot, cold)
+all_M = data[data$Sex == 'M', ]
+all_F = data[data$Sex == 'F', ]
+
+
+# ======================================
+### IDENTIFY AND REMOVE OUTLIERS
+### MALES ###
+dependent_variables = c("EE", "RQ", "VO2", "VCO2", "H2Omg")
+varname_list = c("EE_OLs","RQ_OLs","VO2_OLs","VCO2_OLs","H2O_OLs")
+
+# Loop through dependent variables (DV) and identify outliers > 3 sd from the mean. Add outliers (OLs) to a list to be removed from the larger dataset later.
+for (DV in dependent_variables){
+  model <- lm(as.formula(paste0(DV, " ~ weight + experiment")), data = all_M)
+  model.metrics <- augment(model) %>% select(-.hat, -.sigma, -.fitted, -.se.fit)
+  summ <- model.metrics %>% filter(abs(.std.resid) > 3) %>% as.data.frame()
+
+  OL_list = c()
+  masterlist = c()
+  for (each_outlier_row in 1:nrow(summ)){
+    this_weight <- summ[each_outlier_row, "weight"]
+    this_DV  <- summ[each_outlier_row, DV]
+    OL_list <- c(OL_list, (which(all_M$weight == this_weight & all_M[DV] == this_DV)))
+  }
+  assign(paste("OL_list_", DV, sep = ""), OL_list)  #Assign list of outliers to specified variable lists (OL_list_EE, RQ, VO2, VCO2, mgH2O)
+}
+
+masterlist <- c(OL_list_EE, OL_list_RQ, OL_list_VO2, OL_list_VCO2, OL_list_H2Omg)
+masterlist_noDup <- unique(masterlist)
+all_noOL_M <- all_M[-c(masterlist_noDup),]
+
+### Write all_noOL_M.csv file
+write.csv(all_noOL_M, "all_noOL_M.csv", row.names = FALSE)
+
+
+
+#### FEMALES ####
+for (DV in dependent_variables){
+  model <- lm(as.formula(paste0(DV, " ~ weight + experiment")), data = all_F)
+  model.metrics <- augment(model) %>% select(-.hat, -.sigma, -.fitted, -.se.fit)
+  summ <- model.metrics %>% filter(abs(.std.resid) > 3) %>% as.data.frame()
+  
+  OL_list = c()
+  masterlist = c()
+  for (each_outlier_row in 1:nrow(summ)){
+    this_weight <- summ[each_outlier_row, "weight"]
+    this_DV  <- summ[each_outlier_row, DV]
+    OL_list <- c(OL_list, (which(all_F$weight == this_weight & all_F[DV] == this_DV)))
+  }
+  assign(paste("OL_list_", DV, sep = ""), OL_list)  
+}
+
+masterlist <- c(OL_list_EE, OL_list_RQ, OL_list_VO2, OL_list_VCO2, OL_list_H2Omg)
+masterlist_noDup <- unique(masterlist)
+all_noOL_F <- all_F[-c(masterlist_noDup),]
+
+### Write all_noOL_F.csv file
+write.csv(all_noOL_F, "all_noOL_F.csv", row.names=FALSE)
