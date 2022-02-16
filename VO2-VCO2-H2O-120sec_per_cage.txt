@@ -92,7 +92,7 @@ overwrite_data_with_copy all_samples
 transform general all_samples expression VO2 = FRdry*(delta_O2-deltaCO2*0.2095)/(1-0.2095)
 transform general all_samples expression VCO2 = FRdry*(DeltaCO2 +delta_O2*FiCO2)/(1+FiCO2)
 transform general all_samples expression Vh2Oml = FRdry*deltaH2O/(1-FiH2O)
-transform general all_samples expression Vh2Omg = 0.0803*FRdry*deltaH2O/(1-FiH2O)
+transform general all_samples expression Vh2Omg = 0.83*FRdry*deltaH2O/(1-FiH2O)
 
 'Save the calculations to a new file with prefix Mod-
 save all_samples prefix mod-
